@@ -2,16 +2,105 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import os
+from pathlib import Path
+
+# ML Libraries
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.svm import SVR
 
 # Page config
 st.set_page_config(page_title="Sleep Efficiency Predictor", page_icon="😴", layout="wide")
 
-# Load model
+# ====== TRAIN MODEL FUNCTION ======
 @st.cache_resource
-def load_model():
-    return joblib.load('svm_sleep_model.pkl')
+def train_and_load_model():
+    """Train โมเดลและ return model + preprocessor"""
+    
+    # ตรวจสอบว่ามีไฟล์ CSV ไหม
+    csv_path = Path('data/Sleep_Efficiency.csv')
+    if not csv_path.exists():
+        # ลอง path อื่นๆ
+        possible_paths = [
+            'Sleep_Efficiency.csv',
+            './Sleep_Efficiency.csv',
+            '../data/Sleep_Efficiency.csv'
+        ]
+        for p in possible_paths:
+            if Path(p).exists():
+                csv_path = Path(p)
+                break
+        else:
+            st.error("❌ ไม่พบไฟล์ Sleep_Efficiency.csv")
+            st.stop()
+    
+    # Load data
+    df = pd.read_csv(csv_path)
+    
+    # Feature Engineering
+    df['Bedtime'] = pd.to_datetime(df['Bedtime'])
+    df['Wakeup time'] = pd.to_datetime(df['Wakeup time'])
+    
+    df['Bedtime_hour'] = df['Bedtime'].dt.hour + df['Bedtime'].dt.minute / 60
+    df['Wakeup_hour'] = df['Wakeup time'].dt.hour + df['Wakeup time'].dt.minute / 60
+    df['Sleep_duration_calc'] = (df['Wakeup time'] - df['Bedtime']).dt.total_seconds() / 3600
+    df.loc[df['Sleep_duration_calc'] < 0, 'Sleep_duration_calc'] += 24
+    
+    df = df.drop(columns=['ID', 'Bedtime', 'Wakeup time', 'Sleep duration'])
+    
+    X = df.drop(columns=['Sleep efficiency'])
+    y = df['Sleep efficiency']
+    
+    # Define features
+    numeric_features = ['Age', 'REM sleep percentage', 'Deep sleep percentage',
+                        'Light sleep percentage', 'Awakenings', 'Caffeine consumption',
+                        'Alcohol consumption', 'Exercise frequency',
+                        'Bedtime_hour', 'Wakeup_hour', 'Sleep_duration_calc']
+    
+    categorical_features = ['Gender', 'Smoking status']
+    
+    # Preprocessing
+    numeric_transformer = Pipeline(steps=[
+        ('imputer', SimpleImputer(strategy='median')),
+        ('scaler', StandardScaler())
+    ])
+    
+    categorical_transformer = Pipeline(steps=[
+        ('imputer', SimpleImputer(strategy='most_frequent')),
+        ('onehot', OneHotEncoder(handle_unknown='ignore'))
+    ])
+    
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', numeric_transformer, numeric_features),
+            ('cat', categorical_transformer, categorical_features)
+        ])
+    
+    # Split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    
+    # Train model (ใช้พารามิเตอร์ที่ดีที่สุด)
+    svm_pipeline = Pipeline(steps=[
+        ('preprocessor', preprocessor),
+        ('svr', SVR(C=10, epsilon=0.01, kernel='rbf', gamma='scale'))
+    ])
+    
+    svm_pipeline.fit(X_train, y_train)
+    
+    return svm_pipeline
 
-model = load_model()
+# ====== LOAD MODEL ======
+try:
+    model = train_and_load_model()
+except Exception as e:
+    st.error(f"❌ Error loading/training model: {str(e)}")
+    st.stop()
 
 # Header
 st.title("😴 Sleep Efficiency Predictor")
@@ -82,13 +171,10 @@ if submitted:
     with col2:
         if prediction >= 0.85:
             level = "🟢 ดีมาก"
-            color = "green"
         elif prediction >= 0.70:
             level = "🟡 ปานกลาง"
-            color = "orange"
         else:
             level = "🔴 ควรปรับปรุง"
-            color = "red"
         st.metric("📊 ระดับ", level)
     
     with col3:
