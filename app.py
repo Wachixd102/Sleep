@@ -14,7 +14,11 @@ from sklearn.impute import SimpleImputer
 from sklearn.svm import SVR
 
 # Page config
-st.set_page_config(page_title="Sleep Efficiency Predictor", page_icon="😴", layout="wide")
+st.set_page_config(
+    page_title="ระบบทำนายประสิทธิภาพการนอนหลับ",
+    page_icon="",
+    layout="wide"
+)
 
 # ====== TRAIN MODEL FUNCTION ======
 @st.cache_resource
@@ -35,7 +39,7 @@ def train_and_load_model():
                 csv_path = Path(p)
                 break
         else:
-            st.error("❌ ไม่พบไฟล์ Sleep_Efficiency.csv")
+            st.error("❌ ไม่พบไฟล์ข้อมูล Sleep_Efficiency.csv")
             st.stop()
     
     # Load data
@@ -99,37 +103,44 @@ def train_and_load_model():
 try:
     model = train_and_load_model()
 except Exception as e:
-    st.error(f"❌ Error loading/training model: {str(e)}")
+    st.error(f"❌ เกิดข้อผิดพลาดในการโหลด/ฝึกโมเดล: {str(e)}")
     st.stop()
 
 # Header
-st.title("😴 Sleep Efficiency Predictor")
-st.markdown("ทำนายประสิทธิภาพการนอนหลับด้วย **Support Vector Machine**")
+st.title("😴 ระบบทำนายประสิทธิภาพการนอนหลับ")
+st.markdown("### 🎯 ทำนายคุณภาพการนอนของคุณด้วยเทคโนโลยี Machine Learning")
 st.markdown("---")
 
 # Sidebar - Input Form
-st.sidebar.header("📝 กรอกข้อมูลการนอน")
+st.sidebar.header("📝 กรอกข้อมูลการนอนหลับ")
 
 with st.sidebar.form("input_form"):
-    age = st.number_input("Age (ปี)", min_value=1, max_value=120, value=35)
-    gender = st.selectbox("Gender", ["Male", "Female"])
+    st.subheader("ข้อมูลส่วนบุคคล")
+    age = st.number_input("อายุ (ปี)", min_value=1, max_value=120, value=35, help="ระบุอายุของคุณ")
+    gender = st.selectbox("เพศ", ["ชาย", "หญิง"], help="เลือกเพศของคุณ")
     
-    bedtime_hour = st.slider("Bedtime Hour (0-23)", 0, 23, 23)
-    bedtime_min = st.slider("Bedtime Minute", 0, 59, 0)
-    wakeup_hour = st.slider("Wakeup Hour (0-23)", 0, 23, 7)
-    wakeup_min = st.slider("Wakeup Minute", 0, 59, 0)
+    st.subheader("เวลาการนอน")
+    col1, col2 = st.columns(2)
+    with col1:
+        bedtime_hour = st.slider("ชั่วโมงเข้านอน", 0, 23, 23)
+        bedtime_min = st.slider("นาทีเข้านอน", 0, 59, 0)
+    with col2:
+        wakeup_hour = st.slider("ชั่วโมงตื่นนอน", 0, 23, 7)
+        wakeup_min = st.slider("นาทีตื่นนอน", 0, 59, 0)
     
-    rem = st.slider("REM Sleep %", 0, 100, 20)
-    deep = st.slider("Deep Sleep %", 0, 100, 50)
-    light = st.slider("Light Sleep %", 0, 100, 30)
+    st.subheader("ระยะการนอน")
+    rem = st.slider("ระยะ REM (%)", 0, 100, 20, help="เปอร์เซ็นต์การนอนระยะ REM")
+    deep = st.slider("ระยะหลับลึก (%)", 0, 100, 50, help="เปอร์เซ็นต์การนอนระยะหลับลึก")
+    light = st.slider("ระยะหลับตื้น (%)", 0, 100, 30, help="เปอร์เซ็นต์การนอนระยะหลับตื้น")
     
-    awakenings = st.number_input("Awakenings (ครั้ง)", 0, 20, 1)
-    caffeine = st.number_input("Caffeine (mg)", 0, 500, 50)
-    alcohol = st.number_input("Alcohol (drinks)", 0, 20, 0)
-    smoking = st.selectbox("Smoking Status", ["Yes", "No"])
-    exercise = st.slider("Exercise Frequency (days/week)", 0, 7, 3)
+    st.subheader("พฤติกรรมและไลฟ์สไตล์")
+    awakenings = st.number_input("จำนวนครั้งที่ตื่นกลางคืน", 0, 20, 1, help="จำนวนครั้งที่ตื่นขึ้นกลางคืน")
+    caffeine = st.number_input("คาเฟอีน (มก./วัน)", 0, 500, 50, help="ปริมาณคาเฟอีนที่บริโภคต่อวัน")
+    alcohol = st.number_input("แอลกอฮอล์ (แก้ว/วัน)", 0, 20, 0, help="จำนวนแก้วแอลกอฮอล์ต่อวัน")
+    smoking = st.selectbox("สูบบุหรี่", ["ใช่", "ไม่"], help="สถานะการสูบบุหรี่")
+    exercise = st.slider("ความถี่ในการออกกำลังกาย (วัน/สัปดาห์)", 0, 7, 3, help="จำนวนวันที่ออกกำลังกายต่อสัปดาห์")
     
-    submitted = st.form_submit_button("🔮 ทำนาย", use_container_width=True)
+    submitted = st.form_submit_button("🔮 เริ่มทำนาย", use_container_width=True)
 
 # Calculate features
 def calculate_features():
@@ -139,6 +150,10 @@ def calculate_features():
     duration = wakeup_total - bedtime_total
     if duration < 0:
         duration += 24
+    
+    # แปลงเพศและสูบบุหรี่เป็นภาษาอังกฤษ (ตามข้อมูลต้นฉบับ)
+    gender_eng = "Male" if gender == "ชาย" else "Female"
+    smoking_eng = "Yes" if smoking == "ใช่" else "No"
     
     data = {
         'Age': [age],
@@ -152,8 +167,8 @@ def calculate_features():
         'Bedtime_hour': [bedtime_total],
         'Wakeup_hour': [wakeup_total],
         'Sleep_duration_calc': [duration],
-        'Gender': [gender],
-        'Smoking status': [smoking]
+        'Gender': [gender_eng],
+        'Smoking status': [smoking_eng]
     }
     return pd.DataFrame(data)
 
@@ -163,39 +178,94 @@ if submitted:
     prediction = model.predict(input_df)[0]
     
     st.markdown("---")
+    st.subheader(" ผลการทำนาย")
+    
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("🎯 Sleep Efficiency", f"{prediction:.2%}")
+        st.metric(
+            label="🎯 ประสิทธิภาพการนอนหลับ",
+            value=f"{prediction:.2%}",
+            delta=None
+        )
     
     with col2:
         if prediction >= 0.85:
-            level = "🟢 ดีมาก"
+            level = " ดีมาก"
+            level_eng = "Excellent"
         elif prediction >= 0.70:
             level = "🟡 ปานกลาง"
+            level_eng = "Moderate"
         else:
             level = "🔴 ควรปรับปรุง"
-        st.metric("📊 ระดับ", level)
+            level_eng = "Needs Improvement"
+        st.metric(label="📊 ระดับคุณภาพ", value=level)
     
     with col3:
-        st.metric("⏱️ Duration", f"{input_df['Sleep_duration_calc'][0]:.1f} hrs")
+        duration_hours = input_df['Sleep_duration_calc'][0]
+        st.metric(label="⏱️ ระยะเวลาการนอน", value=f"{duration_hours:.1f} ชม.")
     
     # Progress bar
+    st.markdown("### 📈 ระดับคะแนน")
     st.progress(min(max(prediction, 0), 1))
     
-    # Recommendations
-    st.markdown("### 💡 คำแนะนำ")
+    # คำแนะนำ
+    st.markdown("---")
+    st.subheader(" คำแนะนำเพื่อปรับปรุงการนอนหลับ")
+    
     if prediction < 0.70:
-        st.warning("""
-        - ลดคาเฟอีนและแอลกอฮอล์ก่อนนอน
-        - เข้านอนและตื่นนอนเวลาเดิมเป็นประจำ
-        - เพิ่มการออกกำลังกายสม่ำเสมอ
-        - ลดจำนวนครั้งการตื่นกลางคืน
+        st.error("### ⚠️ การนอนหลับของคุณต้องการการปรับปรุง")
+        st.markdown("""
+        **คำแนะนำ:**
+        - 🚫 **ลดคาเฟอีนและแอลกอฮอล์** โดยเฉพาะก่อนนอน 4-6 ชั่วโมง
+        - ⏰ **เข้านอนและตื่นนอนเวลาเดิม** ทุกวัน แม้แต่วันหยุด
+        -  **ออกกำลังกายสม่ำเสมอ** แต่หลีกเลี่ยงก่อนนอน 2-3 ชั่วโมง
+        - 📱 **หลีกเลี่ยงหน้าจอ** (มือถือ, คอมพิวเตอร์) 1 ชั่วโมงก่อนนอน
+        - 🛏️ **สร้างสภาพแวดล้อมที่ดี** ห้องนอนควรมืด เงียบ และเย็นสบาย
+        -  **ฝึกการผ่อนคลาย** เช่น การหายใจลึกๆ หรือการทำสมาธิก่อนนอน
         """)
     elif prediction < 0.85:
-        st.info("""
+        st.warning("### ⚡ การนอนหลับของคุณอยู่ในระดับปานกลาง")
+        st.markdown("""
+        **คำแนะนำ:**
         - พยายามรักษาเวลาเข้านอนให้สม่ำเสมอ
-        - สร้างสภาพแวดล้อมในห้องนอนที่เหมาะสม
+        - เพิ่มระยะเวลาการนอนหลับลึก (Deep Sleep)
+        - ลดจำนวนครั้งการตื่นกลางคืน
+        - ตรวจสอบปริมาณคาเฟอีนและแอลกอฮอล์
         """)
     else:
-        st.success("🎉 การนอนหลับของคุณมีคุณภาพดีมาก! รักษาไว้ครับ")
+        st.success("### 🎉 ยินดีด้วย! การนอนหลับของคุณมีคุณภาพดีมาก")
+        st.markdown("""
+        **รักษามาตรฐานนี้ไว้:**
+        - ✅ คุณมีพฤติกรรมการนอนที่ดี
+        - ✅ รักษาเวลาการนอนที่สม่ำเสมอ
+        - ✅ การออกกำลังกายเป็นประจำช่วยได้มาก
+        - ✅ ควร继续保持这样的好习惯
+        """)
+    
+    # แสดงรายละเอียดเพิ่มเติม
+    st.markdown("---")
+    st.subheader("📋 ข้อมูลที่คุณกรอก")
+    st.json({
+        "อายุ": f"{age} ปี",
+        "เพศ": gender,
+        "เวลาเข้านอน": f"{bedtime_hour:02d}:{bedtime_min:02d}",
+        "เวลาตื่นนอน": f"{wakeup_hour:02d}:{wakeup_min:02d}",
+        "ระยะ REM": f"{rem}%",
+        "ระยะหลับลึก": f"{deep}%",
+        "ระยะหลับตื้น": f"{light}%",
+        "ตื่นกลางคืน": f"{awakenings} ครั้ง",
+        "คาเฟอีน": f"{caffeine} มก.",
+        "แอลกอฮอล์": f"{alcohol} แก้ว",
+        "สูบบุหรี่": smoking,
+        "ออกกำลังกาย": f"{exercise} วัน/สัปดาห์"
+    })
+
+# Footer
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center'>
+    <p>พัฒนาด้วย ❤️ โดยใช้ Streamlit และ Machine Learning</p>
+    <p>© 2024 Sleep Efficiency Predictor</p>
+</div>
+""", unsafe_allow_html=True)
