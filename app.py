@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
-import streamlit as st
 from pathlib import Path
 
 
@@ -271,23 +270,3 @@ st.markdown("""
     <p>© 2024 Sleep Efficiency Predictor</p>
 </div>
 """, unsafe_allow_html=True)
-
--------------------------------------------------------------------------------------------------------------------
-
-
-# ตั้งค่าหน้าเว็บ
-st.set_page_config(page_title="ML Prediction Hub", layout="wide")
-
-# 1. สร้างเมนูเลือก Dataset/โมเดล ที่ Sidebar
-page = st.sidebar.selectbox(
-    "เลือกแอปพลิเคชันที่ต้องการใช้",
-    ["😴 ทำนายประสิทธิภาพการนอนหลับ (SVM)", "❤️ ทำนายโรคหัวใจ (Decision Tree)"]
-)
-
-# 2. ใช้ if-else เพื่อสลับหน้า
-if page == "😴 ทำนายประสิทธิภาพการนอนหลับ (SVM)":
-    # วางโค้ดส่วน UI และ Logic ของ Sleep Efficiency ที่นี่
-    pass
-elif page == "❤️ ทำนายโรคหัวใจ (Decision Tree)":
-    # วางโค้ดส่วน UI และ Logic ของ Heart Disease ที่นี่
-    pass
